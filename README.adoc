@@ -1,0 +1,142 @@
+= Localizable exception messages
+
+A simple application that generates exception descriptions for the end user.
+The logic allows error messages to be generated in different languages, the parameterization of the message content is also supported.
+
+The implementation has been done in `MessageResolver` class.
+To load template strings it uses `ResourceBundle`, however, the logic can be simply modified to use other sources like Spring `MessageSource`.
+
+Optionally, you can override the `Throwable#getLocalizedMessage()` method in the `AppException` class like this:
+
+[source,java]
+----
+@Override
+public String getLocalizedMessage() {
+var resolver = new MessageResolver();
+return resolver.resolve(this);
+}
+----
+
+== Samples
+
+=== i18n
+
+Example of error when no physical module is found.
+
+.message.properties
+[source]
+----
+ModuleNotFoundException=Module not found
+----
+
+.message_de.properties
+[source]
+----
+ModuleNotFoundException=Modul nicht gefunden
+----
+
+.ModuleNotFoundException.java
+[source,java]
+----
+public class ModuleNotFoundException extends AppException {
+
+  public ModuleNotFoundException(String message) {
+    super(message);
+  }
+}
+----
+
+An example output message:
+
+----
+Module not found
+----
+
+or
+
+----
+Modul nicht gefunden
+----
+
+=== Parametrization of message body
+
+Example of a timeout error during a synchronization attempt.
+
+.message.properties
+[source]
+----
+SyncException=Synchronization with ${timing} ms sampling exceeded the ${timeout} ms time limit
+----
+
+.SyncException.java
+[source,java]
+----
+public class SyncException extends AppException {
+
+  private final int timeout;
+  private final int timing;
+
+  public SyncException(int timeout, int timing) {
+    this.timeout = timeout;
+    this.timing = timing;
+  }
+}
+----
+
+An example output message:
+
+----
+Synchronization with 10 ms sampling exceeded the 4000 ms time limit
+----
+
+=== Extending the error message with code
+
+.message.properties
+[source]
+----
+ModuleUnsupportedException.POWER_CONTROL=Power management is not supported by ${moduleId} module
+ModuleUnsupportedException.NIGHT_MODE=Module ${moduleId} cannot be switched into night mode
+ModuleUnsupportedException.SOUND=Module ${moduleId} does not support sound alarms
+----
+
+.ModuleUnsupportedCode.java
+[source,java]
+----
+public enum ModuleUnsupportedCode {
+  POWER_CONTROL,
+  NIGHT_MODE,
+  SOUND
+}
+----
+
+.ModuleUnsupportedException.java
+[source,java]
+----
+public class ModuleUnsupportedException extends AppException implements ExceptionCode<ModuleUnsupportedCode> {
+
+  private final String moduleId;
+  private final ModuleUnsupportedCode code;
+
+  public ModuleUnsupportedException(String moduleId, ModuleUnsupportedCode code) {
+    this.moduleId = moduleId;
+    this.code = code;
+  }
+
+  @Override
+  public ModuleUnsupportedCode getCode() {
+    return code;
+  }
+}
+----
+
+An example output message:
+
+----
+Power management is not supported by generator1 module
+----
+
+== TODO
+
+- Add `@LocalizationKey("Exception.Key")` annotation -- to be able to specify custom keys in `message.properties` file.
+- Exception class builder (may use some compile-time builder generator)
+- unit tests
